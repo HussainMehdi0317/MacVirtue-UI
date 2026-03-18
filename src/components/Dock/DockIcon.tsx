@@ -5,10 +5,11 @@ interface DockIconProps {
   label: string;
   scale: number;
   onOpen: () => void;
+  icon?: React.ReactNode;
 }
 
 const DockIcon = React.forwardRef<HTMLButtonElement, DockIconProps>(
-  ({ label, scale, onOpen }, ref) => {
+  ({ label, scale, onOpen, icon }, ref) => {
     const [launching, setLaunching] = React.useState(false);
 
     const handleClick = () => {
@@ -50,9 +51,9 @@ const DockIcon = React.forwardRef<HTMLButtonElement, DockIconProps>(
             damping: 20
           }}
         >
-          <span className="text-sm font-semibold">
+          {icon || <span className="text-sm font-semibold">
             {label.slice(0, 2).toUpperCase()}
-          </span>
+          </span>}
         </motion.div>
         <span className="mt-1 text-[10px] text-slate-200">{label}</span>
       </motion.button>

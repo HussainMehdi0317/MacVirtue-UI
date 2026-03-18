@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type AppId = "finder" | "settings" | "notes" | "calculator" | "terminal";
+export type AppId = "finder" | "settings" | "notes" | "calculator" | "terminal" | "pacman";
 
 export interface WindowState {
   id: string;
@@ -43,9 +43,13 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
         settings: { x: 320, y: 120 },
         notes: { x: 180, y: 180 },
         calculator: { x: 420, y: 160 },
+        pacman: { x: 250, y: 140 },
         terminal: { x: 220, y: 220 }
       };
       const baseOffset = appOffsets[appId];
+
+      // PacMan should open in fullscreen/maximized
+      const shouldMaximize = appId === "pacman";
 
       const base: WindowState = {
         id,
@@ -58,7 +62,7 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
         width: 720,
         height: 480,
         minimized: false,
-        maximized: false,
+        maximized: shouldMaximize,
         isFocused: true
       };
       const windows = state.windows.map((w) => ({ ...w, isFocused: false }));

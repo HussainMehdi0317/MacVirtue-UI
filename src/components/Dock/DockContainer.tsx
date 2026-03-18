@@ -3,6 +3,44 @@ import { motion } from "framer-motion";
 import DockIcon from "./DockIcon";
 import { useWindowStore } from "../../state/useWindowStore";
 
+// SVG icon components
+const FilesIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z" />
+  </svg>
+);
+
+const NotesIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-8v2h8v-2zm0-4h-8v2h8V9z" />
+  </svg>
+);
+
+const SettingsIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l1.72-1.35c.15-.12.19-.34.09-.51l-1.64-2.84c-.1-.17-.31-.24-.49-.17l-2.03.81c-.42-.32-.88-.58-1.38-.78l-.31-2.16c-.04-.2-.21-.34-.43-.34h-3.28c-.22 0-.39.14-.43.34l-.31 2.16c-.5.2-.96.46-1.38.78l-2.03-.81c-.18-.07-.39 0-.49.17l-1.64 2.84c-.1.17-.06.39.09.51l1.72 1.35c-.05.3-.07.62-.07.94s.02.64.07.94l-1.72 1.35c-.15.12-.19.34-.09.51l1.64 2.84c.1.17.31.24.49.17l2.03-.81c.42.32.88.58 1.38.78l.31 2.16c.05.2.21.34.43.34h3.28c.22 0 .39-.14.43-.34l.31-2.16c.5-.2.96-.46 1.38-.78l2.03.81c.18.07.39 0 .49-.17l1.64-2.84c.1-.17.06-.39-.09-.51l-1.72-1.35zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
+  </svg>
+);
+
+const CalcIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM7 7h3v3H7V7zm3 9H7v3h3v-3zm3-9h3v3h-3V7zm3 9h-3v3h3v-3zm0-4h-3v3h3v-3z" />
+  </svg>
+);
+
+const TerminalIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M5 3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2H5zm2 12h8v2H7v-2zm0-4h8v2H7v-2z" />
+  </svg>
+);
+
+const PacManIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+    <circle cx="12" cy="12" r="8" fill="#FFD700" />
+    <path d="M 12 12 L 18 8 L 18 16 Z" fill="#000000" />
+  </svg>
+);
+
 const A = 0.7;
 const SIGMA = 150;
 
@@ -25,16 +63,16 @@ const DockContainer: React.FC = () => {
   const [scales, setScales] = React.useState<number[]>([]);
   const requestRef = React.useRef<number | null>(null);
 
-  // Track the dock DOM rect so we only react when the cursor is near/over it
   const dockRef = React.useRef<HTMLDivElement | null>(null);
 
   const icons = React.useMemo(
     () => [
-      { id: "finder", label: "Files", appId: "finder" as const },
-      { id: "notes", label: "Notes", appId: "notes" as const },
-      { id: "settings", label: "Settings", appId: "settings" as const },
-      { id: "calculator", label: "Calc", appId: "calculator" as const },
-      { id: "terminal", label: "Term", appId: "terminal" as const }
+      { id: "finder", label: "Files", appId: "finder" as const, icon: <FilesIcon /> },
+      { id: "notes", label: "Notes", appId: "notes" as const, icon: <NotesIcon /> },
+      { id: "settings", label: "Settings", appId: "settings" as const, icon: <SettingsIcon /> },
+      { id: "calculator", label: "Calc", appId: "calculator" as const, icon: <CalcIcon /> },
+      { id: "pacman", label: "PacMan", appId: "pacman" as const, icon: <PacManIcon /> },
+      { id: "terminal", label: "Term", appId: "terminal" as const, icon: <TerminalIcon /> }
     ],
     []
   );
@@ -61,17 +99,20 @@ const DockContainer: React.FC = () => {
       const pageX = ev.clientX;
       const pageY = ev.clientY;
 
-      // Only respond when the cursor is visually close to the dock
       const dockEl = dockRef.current;
       if (!dockEl) return;
       const rect = dockEl.getBoundingClientRect();
 
-      const hoverPadding = 120; // how far above the dock we still react
-      const withinX = pageX >= rect.left - 32 && pageX <= rect.right + 32;
-      const withinY = pageY >= rect.top - hoverPadding && pageY <= rect.bottom + 32;
+      // Tighter hover band so dock only reacts when you're close to it
+      const hoverPaddingY = 40; // distance above dock
+      const hoverPaddingX = 16; // horizontal padding
+
+      const withinX =
+        pageX >= rect.left - hoverPaddingX && pageX <= rect.right + hoverPaddingX;
+      const withinY =
+        pageY >= rect.top - hoverPaddingY && pageY <= rect.bottom + 16;
 
       if (!(withinX && withinY)) {
-        // Cursor is away from the dock; reset to neutral scales
         if (cursorX !== null) {
           setCursorX(null);
         }
@@ -107,23 +148,11 @@ const DockContainer: React.FC = () => {
     });
   }, [cursorX, iconCenters]);
 
-  const baseIconWidth = 48;
-  const gap = 12;
-  const dockWidth =
-    iconCenters.length > 0
-      ? iconCenters.reduce(
-          (sum, _c, idx) => sum + baseIconWidth * (scales[idx] || 1),
-          0
-        ) +
-        gap * (iconCenters.length - 1)
-      : icons.length * baseIconWidth + gap * (icons.length - 1);
-
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
       <motion.div
         ref={dockRef}
-        className="pointer-events-auto flex items-end rounded-3xl bg-black/40 border border-white/10 backdrop-blur-2xl px-3 py-1 shadow-[0_18px_50px_rgba(0,0,0,0.75)]"
-        style={{ width: dockWidth }}
+        className="pointer-events-auto inline-flex items-end rounded-3xl bg-black/40 border border-white/10 backdrop-blur-2xl px-4 py-1.5 shadow-[0_18px_50px_rgba(0,0,0,0.75)]"
         layout
         transition={{ type: "spring", damping: 22, stiffness: 260 }}
       >
@@ -133,6 +162,7 @@ const DockContainer: React.FC = () => {
             ref={(el) => (iconRefs.current[index] = el)}
             label={icon.label}
             scale={scales[index] ?? 1}
+            icon={icon.icon}
             onOpen={() => openWindow(icon.appId)}
           />
         ))}

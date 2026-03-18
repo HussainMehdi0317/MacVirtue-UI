@@ -8,7 +8,7 @@ import ContextMenu from "./ContextMenu";
 
 const DesktopRoot: React.FC = () => {
   return (
-    <div className="h-full w-full relative overflow-hidden bg-black text-white">
+    <div className="h-full w-full relative overflow-hidden text-white">
       <WallpaperSystem />
       <TopBar />
       <DesktopIcons />
