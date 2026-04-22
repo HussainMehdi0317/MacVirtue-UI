@@ -9,19 +9,42 @@ const INITIAL_SPEED = 150;
 type Direction = "UP" | "DOWN" | "LEFT" | "RIGHT";
 type Position = { x: number; y: number };
 
-// Color scheme that changes every 100 points
+// Color scheme that changes every 100 points - interpolate between colors
 const COLOR_SCHEMES = [
-  { bg: "#0a0a0f", snake: "#00ff00", food: "#ff3333" }, // Green/Red
-  { bg: "#0f0a0a", snake: "#00ffff", food: "#ffaa00" }, // Cyan/Orange
-  { bg: "#0a0f0a", snake: "#ff00ff", food: "#00ffff" }, // Magenta/Cyan
-  { bg: "#0f0f0a", snake: "#ffff00", food: "#ff0000" }, // Yellow/Red
-  { bg: "#0a0a0f", snake: "#00ccff", food: "#ff6600" }  // Light Blue/Orange
+  { bg: "#0a0a0f", snake: "#00ff00", food: "#ff3333", name: "Green/Red" },      // 0-99
+  { bg: "#0f0a0a", snake: "#00ffff", food: "#ffaa00", name: "Cyan/Orange" },    // 100-199
+  { bg: "#0a0f0a", snake: "#ff00ff", food: "#00ffff", name: "Magenta/Cyan" },   // 200-299
+  { bg: "#0f0f0a", snake: "#ffff00", food: "#ff0000", name: "Yellow/Red" },     // 300-399
+  { bg: "#0a0a0f", snake: "#00ccff", food: "#ff6600", name: "Light Blue/Orange" } // 400+
 ];
+
+// Interpolate between two hex colors
+const interpolateColor = (color1: string, color2: string, t: number): string => {
+  const hex2rgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? [
+      parseInt(result[1], 16),
+      parseInt(result[2], 16),
+      parseInt(result[3], 16)
+    ] : [0, 0, 0];
+  };
+  
+  const rgb2hex = (r: number, g: number, b: number) => {
+    return "#" + [r, g, b].map(x => {
+      const hex = Math.round(x).toString(16);
+      return hex.length === 1 ? "0" + hex : hex;
+    }).join('');
+  };
+  
+  const [r1, g1, b1] = hex2rgb(color1);
+  const [r2, g2, b2] = hex2rgb(color2);
+  
+  return rgb2hex(r1 + (r2 - r1) * t, g1 + (g2 - g1) * t, b1 + (b2 - b1) * t);
+};
 
 export const SnakeGame: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const [snake, setSnake] = useState<Position[]>([
     { x: 10, y: 10 },
@@ -37,14 +60,27 @@ export const SnakeGame: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(INITIAL_SPEED);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [currentColors, setCurrentColors] = useState(COLOR_SCHEMES[0]);
 
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  // Get current color scheme based on score
-  const getCurrentColorScheme = () => {
+  // Update colors smoothly based on score
+  useEffect(() => {
     const schemeIndex = Math.floor(score / 100) % COLOR_SCHEMES.length;
-    return COLOR_SCHEMES[schemeIndex];
-  };
+    const nextSchemeIndex = (schemeIndex + 1) % COLOR_SCHEMES.length;
+    const scoreInScheme = score % 100;
+    const transitionProgress = scoreInScheme / 100;
+    
+    const currentScheme = COLOR_SCHEMES[schemeIndex];
+    const nextScheme = COLOR_SCHEMES[nextSchemeIndex];
+    
+    setCurrentColors({
+      bg: interpolateColor(currentScheme.bg, nextScheme.bg, transitionProgress),
+      snake: interpolateColor(currentScheme.snake, nextScheme.snake, transitionProgress),
+      food: interpolateColor(currentScheme.food, nextScheme.food, transitionProgress),
+      name: currentScheme.name
+    });
+  }, [score]);
 
   // Generate random food position
   const generateFood = (): Position => {
@@ -190,22 +226,20 @@ export const SnakeGame: React.FC = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const colors = getCurrentColorScheme();
-
-    // Clear canvas with solid color (no grid)
-    ctx.fillStyle = colors.bg;
+    // Clear canvas with smooth color
+    ctx.fillStyle = currentColors.bg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Draw snake
     snake.forEach((segment, index) => {
       if (index === 0) {
         // Head - brighter glow
-        ctx.fillStyle = colors.snake;
-        ctx.shadowColor = colors.snake;
+        ctx.fillStyle = currentColors.snake;
+        ctx.shadowColor = currentColors.snake;
         ctx.shadowBlur = 15;
       } else {
         // Body
-        ctx.fillStyle = colors.snake;
+        ctx.fillStyle = currentColors.snake;
         ctx.shadowColor = "transparent";
         ctx.shadowBlur = 0;
       }
@@ -213,8 +247,8 @@ export const SnakeGame: React.FC = () => {
     });
 
     // Draw food
-    ctx.fillStyle = colors.food;
-    ctx.shadowColor = colors.food;
+    ctx.fillStyle = currentColors.food;
+    ctx.shadowColor = currentColors.food;
     ctx.shadowBlur = 12;
     ctx.beginPath();
     ctx.arc(
@@ -226,7 +260,7 @@ export const SnakeGame: React.FC = () => {
     );
     ctx.fill();
     ctx.shadowColor = "transparent";
-  }, [snake, food, score]);
+  }, [snake, food, currentColors]);
 
   const handleStart = () => {
     if (gameOver) {
@@ -263,95 +297,86 @@ export const SnakeGame: React.FC = () => {
   };
 
   return (
-    <div ref={containerRef} className="w-full h-full flex flex-col bg-gray-900">
-      {/* Header - Fixed at top */}
-      <div className="flex-shrink-0 py-3 px-4 border-b border-gray-700">
-        <h1 className="text-2xl font-bold text-center text-green-400">SNAKE</h1>
-        <p className="text-gray-400 text-xs text-center">Press W/A/S/D or Arrow Keys to start & move</p>
+    <div ref={containerRef} className="w-full h-full flex flex-col bg-gray-900 min-h-0">
+      {/* Header - Compact and Fixed */}
+      <div className="flex-shrink-0 py-2 px-3 border-b border-gray-700 bg-gray-950">
+        <h1 className="text-xl font-bold text-center text-green-400 leading-tight">SNAKE</h1>
+        <p className="text-gray-400 text-[10px] text-center leading-tight">Press W/A/S/D or ↑/↓/←/→</p>
       </div>
 
-      {/* Main Game Area - Flexible */}
-      <div className="flex-1 flex items-center justify-center gap-4 px-4 py-4 overflow-hidden">
-        {/* Left Side Score (Fullscreen) */}
-        <div className="hidden sm:flex flex-col items-center justify-center text-center min-w-fit">
-          <p className="text-gray-400 text-sm">SCORE</p>
-          <p className="text-green-400 font-bold text-3xl">{score}</p>
-          <p className="text-gray-500 text-xs mt-2">Speed: {Math.floor((INITIAL_SPEED - speed) / 2) + 1}</p>
-        </div>
-
-        {/* Canvas Container */}
-        <div className="flex-shrink-0 border-4 border-green-400 rounded-lg overflow-hidden shadow-lg">
+      {/* Main Game Area - Takes remaining space */}
+      <div className="flex-1 flex items-center justify-center gap-2 px-2 py-2 overflow-hidden min-h-0">
+        {/* Canvas Container - Responsive size */}
+        <div className="flex-shrink-0 border-3 border-green-400 rounded-lg overflow-hidden shadow-lg">
           <canvas
             ref={canvasRef}
             width={GRID_WIDTH * CELL_SIZE}
             height={GRID_HEIGHT * CELL_SIZE}
-            className="bg-gray-950 block"
+            className="bg-gray-950 block w-full h-full"
+            style={{
+              imageRendering: "crisp-edges"
+            }}
           />
         </div>
 
-        {/* Right Side - Game Over Message (Fullscreen) */}
-        <div className="hidden sm:flex flex-col items-center justify-center text-center min-w-fit">
-          {gameOver ? (
-            <>
-              <p className="text-red-400 text-sm font-bold">GAME</p>
-              <p className="text-red-400 text-sm font-bold">OVER</p>
-              <p className="text-gray-400 text-xs mt-2">Final: {score}</p>
-            </>
-          ) : (
-            <p className="text-gray-500 text-xs">Ready to Play</p>
+        {/* Side Info - Hidden on small screens */}
+        <div className="hidden lg:flex flex-col gap-2 min-w-fit">
+          {/* Score */}
+          <div className="text-center">
+            <p className="text-gray-500 text-xs">SCORE</p>
+            <p className="text-green-400 font-bold text-lg">{score}</p>
+            <p className="text-gray-600 text-xs">Speed: {Math.floor((INITIAL_SPEED - speed) / 2) + 1}</p>
+          </div>
+
+          {/* Game Over */}
+          {gameOver && (
+            <div className="text-center border-t border-gray-700 pt-2">
+              <p className="text-red-400 text-xs font-bold">GAME OVER</p>
+              <p className="text-gray-400 text-xs">Final: {score}</p>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Bottom Controls - Fixed */}
-      <div className="flex-shrink-0 flex flex-col gap-3 items-center px-4 py-4 border-t border-gray-700">
-        {/* Mobile Score Display */}
-        <div className="sm:hidden text-center">
-          <p className="text-white text-sm">
-            Score: <span className="text-green-400 font-bold">{score}</span>
+      {/* Bottom Controls - Compact and Fixed */}
+      <div className="flex-shrink-0 flex flex-col gap-2 items-center px-2 py-2 border-t border-gray-700 bg-gray-950">
+        {/* Score on mobile/tablet */}
+        <div className="lg:hidden text-center text-xs">
+          <p className="text-white">
+            Score: <span className="text-green-400 font-bold">{score}</span> | Speed: {Math.floor((INITIAL_SPEED - speed) / 2) + 1}
           </p>
-          <p className="text-gray-400 text-xs">Speed: {Math.floor((INITIAL_SPEED - speed) / 2) + 1}</p>
+          {gameOver && <p className="text-red-400 text-xs mt-1">Game Over! Final: {score}</p>}
         </div>
 
-        {/* Game Over Message (Mobile) */}
-        {gameOver && (
-          <div className="sm:hidden text-center">
-            <p className="text-red-400 text-sm font-bold">GAME OVER!</p>
-            <p className="text-gray-400 text-xs">Final Score: {score}</p>
-          </div>
-        )}
-
-        {/* Control Buttons */}
-        <div className="flex gap-2 flex-wrap justify-center">
+        {/* Control Buttons - Compact */}
+        <div className="flex gap-1.5 flex-wrap justify-center">
           <button
             onClick={handleStart}
-            className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-black font-bold text-sm rounded-lg transition-colors"
+            className="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-black font-bold text-xs rounded transition-colors"
+            title={gameOver ? "Start new game" : isPlaying ? "Pause" : "Start"}
           >
-            <Play size={14} />
-            {gameOver ? "New" : isPlaying ? "Pause" : "Start"}
+            <Play size={12} />
+            <span className="hidden sm:inline">{gameOver ? "New" : isPlaying ? "Pause" : "Start"}</span>
           </button>
           <button
             onClick={handleReset}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold text-sm rounded-lg transition-colors"
+            className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs rounded transition-colors"
+            title="Reset game"
           >
-            <RotateCcw size={14} />
-            Reset
+            <RotateCcw size={12} />
+            <span className="hidden sm:inline">Reset</span>
           </button>
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
-            className={`flex items-center gap-2 px-3 py-2 font-bold text-sm rounded-lg transition-colors ${
+            className={`flex items-center gap-1 px-2.5 py-1.5 font-bold text-xs rounded transition-colors ${
               soundEnabled
                 ? "bg-yellow-500 hover:bg-yellow-600 text-black"
                 : "bg-gray-500 hover:bg-gray-600 text-white"
             }`}
+            title={soundEnabled ? "Mute" : "Unmute"}
           >
-            {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+            {soundEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
           </button>
-        </div>
-
-        {/* Instructions */}
-        <div className="text-center text-gray-400 text-xs max-w-xs">
-          <p>• Eat food to grow • Avoid walls & yourself • Colors change every 100 points</p>
         </div>
       </div>
     </div>
