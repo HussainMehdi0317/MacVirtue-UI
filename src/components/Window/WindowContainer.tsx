@@ -11,6 +11,7 @@ import NotesApp from "../Apps/Notes/NotesApp";
 import CalculatorApp from "../Apps/Calculator/CalculatorApp";
 import TerminalApp from "../Apps/Terminal/TerminalApp";
 import PacManGameApp from "../Apps/PacMan/PacManGameApp";
+import SnakeApp from "../../apps/Snake";
 
 interface Props {
   window: WindowState;
@@ -28,6 +29,8 @@ const appContent = (appId: WindowState["appId"]) => {
       return <CalculatorApp />;
     case "pacman":
       return <PacManGameApp />;
+    case "snake":
+      return <SnakeApp />;
     case "terminal":
       return <TerminalApp />;
     default:

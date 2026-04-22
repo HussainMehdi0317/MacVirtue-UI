@@ -63,3 +63,18 @@ export const PacManIcon = React.memo(() => (
     <circle cx="215" cy="75" r="8" fill="#000"/>
   </svg>
 ));
+
+export const SnakeIcon = React.memo(() => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+    <circle cx="18" cy="6" r="2" fill="#00FF00"/>
+    <circle cx="14" cy="6" r="2" fill="#00CC00"/>
+    <circle cx="10" cy="6" r="2" fill="#00AA00"/>
+    <circle cx="6" cy="6" r="2" fill="#009900"/>
+    <circle cx="6" cy="10" r="2" fill="#008800"/>
+    <circle cx="6" cy="14" r="2" fill="#007700"/>
+    <circle cx="10" cy="14" r="2" fill="#006600"/>
+    <circle cx="14" cy="14" r="2" fill="#005500"/>
+    <rect x="13" y="13" width="8" height="8" fill="#FF3333" rx="1"/>
+  </svg>
+));
+

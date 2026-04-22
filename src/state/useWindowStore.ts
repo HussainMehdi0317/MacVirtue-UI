@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type AppId = "finder" | "settings" | "notes" | "calculator" | "terminal" | "pacman";
+export type AppId = "finder" | "settings" | "notes" | "calculator" | "terminal" | "pacman" | "snake";
 
 export interface WindowState {
   id: string;
@@ -44,6 +44,7 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
         notes: { x: 180, y: 180 },
         calculator: { x: 420, y: 160 },
         pacman: { x: 250, y: 140 },
+        snake: { x: 300, y: 100 },
         terminal: { x: 220, y: 220 }
       };
       const baseOffset = appOffsets[appId];
