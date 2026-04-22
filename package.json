@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite dev --host 127.0.0.1 & tauri dev",
     "dev:web": "vite dev --host 127.0.0.1",
-    "build": "vite build && tauri build --debug",
+    "build": "vite build",
+    "build:desktop": "vite build && tauri build --debug",
     "package": "vite build && tauri build",
     "test": "jest",
     "test:e2e": "playwright test",
