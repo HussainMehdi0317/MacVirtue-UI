@@ -9,13 +9,24 @@ const INITIAL_SPEED = 150;
 type Direction = "UP" | "DOWN" | "LEFT" | "RIGHT";
 type Position = { x: number; y: number };
 
+// Color scheme that changes every 100 points
+const COLOR_SCHEMES = [
+  { bg: "#0a0a0f", snake: "#00ff00", food: "#ff3333" }, // Green/Red
+  { bg: "#0f0a0a", snake: "#00ffff", food: "#ffaa00" }, // Cyan/Orange
+  { bg: "#0a0f0a", snake: "#ff00ff", food: "#00ffff" }, // Magenta/Cyan
+  { bg: "#0f0f0a", snake: "#ffff00", food: "#ff0000" }, // Yellow/Red
+  { bg: "#0a0a0f", snake: "#00ccff", food: "#ff6600" }  // Light Blue/Orange
+];
+
 export const SnakeGame: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const [snake, setSnake] = useState<Position[]>([
     { x: 10, y: 10 },
     { x: 10, y: 11 },
-    { x: 10, y: 12 }
+    { x: 10, y: 12 }    
   ]);
 
   const [food, setFood] = useState<Position>({ x: 5, y: 5 });
@@ -28,6 +39,12 @@ export const SnakeGame: React.FC = () => {
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   const audioContextRef = useRef<AudioContext | null>(null);
+
+  // Get current color scheme based on score
+  const getCurrentColorScheme = () => {
+    const schemeIndex = Math.floor(score / 100) % COLOR_SCHEMES.length;
+    return COLOR_SCHEMES[schemeIndex];
+  };
 
   // Generate random food position
   const generateFood = (): Position => {
@@ -62,38 +79,47 @@ export const SnakeGame: React.FC = () => {
     oscillator.stop(ctx.currentTime + duration / 1000);
   };
 
-  // Handle keyboard input
+  // Handle keyboard input - auto-start on movement key
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (!isPlaying) return;
+      const key = e.key.toUpperCase();
+      let isMovementKey = false;
 
-      switch (e.key.toUpperCase()) {
+      switch (key) {
         case "ARROWUP":
         case "W":
           if (direction !== "DOWN") setNextDirection("UP");
-          e.preventDefault();
+          isMovementKey = true;
           break;
         case "ARROWDOWN":
         case "S":
           if (direction !== "UP") setNextDirection("DOWN");
-          e.preventDefault();
+          isMovementKey = true;
           break;
         case "ARROWLEFT":
         case "A":
           if (direction !== "RIGHT") setNextDirection("LEFT");
-          e.preventDefault();
+          isMovementKey = true;
           break;
         case "ARROWRIGHT":
         case "D":
           if (direction !== "LEFT") setNextDirection("RIGHT");
-          e.preventDefault();
+          isMovementKey = true;
           break;
+      }
+
+      // Auto-start game if not playing and movement key pressed
+      if (isMovementKey && !isPlaying && !gameOver) {
+        setIsPlaying(true);
+        e.preventDefault();
+      } else if (isMovementKey && isPlaying) {
+        e.preventDefault();
       }
     };
 
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [isPlaying, direction]);
+  }, [isPlaying, gameOver, direction]);
 
   // Game loop
   useEffect(() => {
@@ -164,36 +190,22 @@ export const SnakeGame: React.FC = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Clear canvas
-    ctx.fillStyle = "#1a1a2e";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const colors = getCurrentColorScheme();
 
-    // Draw grid
-    ctx.strokeStyle = "#2a2a4e";
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= GRID_WIDTH; i++) {
-      ctx.beginPath();
-      ctx.moveTo(i * CELL_SIZE, 0);
-      ctx.lineTo(i * CELL_SIZE, GRID_HEIGHT * CELL_SIZE);
-      ctx.stroke();
-    }
-    for (let i = 0; i <= GRID_HEIGHT; i++) {
-      ctx.beginPath();
-      ctx.moveTo(0, i * CELL_SIZE);
-      ctx.lineTo(GRID_WIDTH * CELL_SIZE, i * CELL_SIZE);
-      ctx.stroke();
-    }
+    // Clear canvas with solid color (no grid)
+    ctx.fillStyle = colors.bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Draw snake
     snake.forEach((segment, index) => {
       if (index === 0) {
-        // Head
-        ctx.fillStyle = "#00ff00";
-        ctx.shadowColor = "#00ff00";
-        ctx.shadowBlur = 10;
+        // Head - brighter glow
+        ctx.fillStyle = colors.snake;
+        ctx.shadowColor = colors.snake;
+        ctx.shadowBlur = 15;
       } else {
         // Body
-        ctx.fillStyle = "#00cc00";
+        ctx.fillStyle = colors.snake;
         ctx.shadowColor = "transparent";
         ctx.shadowBlur = 0;
       }
@@ -201,9 +213,9 @@ export const SnakeGame: React.FC = () => {
     });
 
     // Draw food
-    ctx.fillStyle = "#ff3333";
-    ctx.shadowColor = "#ff3333";
-    ctx.shadowBlur = 8;
+    ctx.fillStyle = colors.food;
+    ctx.shadowColor = colors.food;
+    ctx.shadowBlur = 12;
     ctx.beginPath();
     ctx.arc(
       food.x * CELL_SIZE + CELL_SIZE / 2,
@@ -214,7 +226,7 @@ export const SnakeGame: React.FC = () => {
     );
     ctx.fill();
     ctx.shadowColor = "transparent";
-  }, [snake, food]);
+  }, [snake, food, score]);
 
   const handleStart = () => {
     if (gameOver) {
@@ -251,72 +263,96 @@ export const SnakeGame: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-gray-900 to-gray-800 p-4 gap-4">
-      {/* Game Title */}
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-green-400 mb-2">SNAKE</h1>
-        <p className="text-gray-400 text-sm">Use Arrow Keys or WASD to move</p>
+    <div ref={containerRef} className="w-full h-full flex flex-col bg-gray-900">
+      {/* Header - Fixed at top */}
+      <div className="flex-shrink-0 py-3 px-4 border-b border-gray-700">
+        <h1 className="text-2xl font-bold text-center text-green-400">SNAKE</h1>
+        <p className="text-gray-400 text-xs text-center">Press W/A/S/D or Arrow Keys to start & move</p>
       </div>
 
-      {/* Canvas */}
-      <div className="border-4 border-green-400 rounded-lg overflow-hidden shadow-lg">
-        <canvas
-          ref={canvasRef}
-          width={GRID_WIDTH * CELL_SIZE}
-          height={GRID_HEIGHT * CELL_SIZE}
-          className="bg-gray-950"
-        />
-      </div>
-
-      {/* Score Display */}
-      <div className="text-center">
-        <p className="text-white text-lg">
-          Score: <span className="text-green-400 font-bold text-2xl">{score}</span>
-        </p>
-        <p className="text-gray-400 text-sm">Speed: {Math.floor((INITIAL_SPEED - speed) / 2) + 1}</p>
-      </div>
-
-      {/* Game Over Message */}
-      {gameOver && (
-        <div className="text-center">
-          <p className="text-red-400 text-xl font-bold">GAME OVER!</p>
-          <p className="text-gray-400">Final Score: {score}</p>
+      {/* Main Game Area - Flexible */}
+      <div className="flex-1 flex items-center justify-center gap-4 px-4 py-4 overflow-hidden">
+        {/* Left Side Score (Fullscreen) */}
+        <div className="hidden sm:flex flex-col items-center justify-center text-center min-w-fit">
+          <p className="text-gray-400 text-sm">SCORE</p>
+          <p className="text-green-400 font-bold text-3xl">{score}</p>
+          <p className="text-gray-500 text-xs mt-2">Speed: {Math.floor((INITIAL_SPEED - speed) / 2) + 1}</p>
         </div>
-      )}
 
-      {/* Controls */}
-      <div className="flex gap-3">
-        <button
-          onClick={handleStart}
-          className="flex items-center gap-2 px-6 py-2 bg-green-500 hover:bg-green-600 text-black font-bold rounded-lg transition-colors"
-        >
-          <Play size={16} />
-          {gameOver ? "New Game" : isPlaying ? "Pause" : "Start"}
-        </button>
-        <button
-          onClick={handleReset}
-          className="flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg transition-colors"
-        >
-          <RotateCcw size={16} />
-          Reset
-        </button>
-        <button
-          onClick={() => setSoundEnabled(!soundEnabled)}
-          className={`flex items-center gap-2 px-4 py-2 font-bold rounded-lg transition-colors ${
-            soundEnabled
-              ? "bg-yellow-500 hover:bg-yellow-600 text-black"
-              : "bg-gray-500 hover:bg-gray-600 text-white"
-          }`}
-        >
-          {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-        </button>
+        {/* Canvas Container */}
+        <div className="flex-shrink-0 border-4 border-green-400 rounded-lg overflow-hidden shadow-lg">
+          <canvas
+            ref={canvasRef}
+            width={GRID_WIDTH * CELL_SIZE}
+            height={GRID_HEIGHT * CELL_SIZE}
+            className="bg-gray-950 block"
+          />
+        </div>
+
+        {/* Right Side - Game Over Message (Fullscreen) */}
+        <div className="hidden sm:flex flex-col items-center justify-center text-center min-w-fit">
+          {gameOver ? (
+            <>
+              <p className="text-red-400 text-sm font-bold">GAME</p>
+              <p className="text-red-400 text-sm font-bold">OVER</p>
+              <p className="text-gray-400 text-xs mt-2">Final: {score}</p>
+            </>
+          ) : (
+            <p className="text-gray-500 text-xs">Ready to Play</p>
+          )}
+        </div>
       </div>
 
-      {/* Instructions */}
-      <div className="text-center text-gray-400 text-xs max-w-xs">
-        <p>• Eat the red food to grow</p>
-        <p>• Don't hit the walls or yourself</p>
-        <p>• Speed increases as you score</p>
+      {/* Bottom Controls - Fixed */}
+      <div className="flex-shrink-0 flex flex-col gap-3 items-center px-4 py-4 border-t border-gray-700">
+        {/* Mobile Score Display */}
+        <div className="sm:hidden text-center">
+          <p className="text-white text-sm">
+            Score: <span className="text-green-400 font-bold">{score}</span>
+          </p>
+          <p className="text-gray-400 text-xs">Speed: {Math.floor((INITIAL_SPEED - speed) / 2) + 1}</p>
+        </div>
+
+        {/* Game Over Message (Mobile) */}
+        {gameOver && (
+          <div className="sm:hidden text-center">
+            <p className="text-red-400 text-sm font-bold">GAME OVER!</p>
+            <p className="text-gray-400 text-xs">Final Score: {score}</p>
+          </div>
+        )}
+
+        {/* Control Buttons */}
+        <div className="flex gap-2 flex-wrap justify-center">
+          <button
+            onClick={handleStart}
+            className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-black font-bold text-sm rounded-lg transition-colors"
+          >
+            <Play size={14} />
+            {gameOver ? "New" : isPlaying ? "Pause" : "Start"}
+          </button>
+          <button
+            onClick={handleReset}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold text-sm rounded-lg transition-colors"
+          >
+            <RotateCcw size={14} />
+            Reset
+          </button>
+          <button
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            className={`flex items-center gap-2 px-3 py-2 font-bold text-sm rounded-lg transition-colors ${
+              soundEnabled
+                ? "bg-yellow-500 hover:bg-yellow-600 text-black"
+                : "bg-gray-500 hover:bg-gray-600 text-white"
+            }`}
+          >
+            {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+          </button>
+        </div>
+
+        {/* Instructions */}
+        <div className="text-center text-gray-400 text-xs max-w-xs">
+          <p>• Eat food to grow • Avoid walls & yourself • Colors change every 100 points</p>
+        </div>
       </div>
     </div>
   );
