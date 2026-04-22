@@ -97,9 +97,9 @@ const WindowContainer: React.FC<Props> = ({ window }) => {
         stiffness: 220,
         damping: 24,
       }}
-      initial={{ opacity: 0, scale: 0.9, y: 16 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95, y: 10 }}
+      initial={{ opacity: 0, scale: 0.9, y: 16, pointerEvents: "none" }}
+      animate={{ opacity: 1, scale: 1, y: 0, pointerEvents: "auto" }}
+      exit={{ opacity: 0, scale: 0.95, y: 10, pointerEvents: "none" }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
